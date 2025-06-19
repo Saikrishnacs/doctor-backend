@@ -68,7 +68,7 @@ app.post("/add-doctor", authenticateKey, async (req, res) => {
 });
 
 
-app.post("/upload-image", upload.single("image"), async (req, res) => {
+app.post("/upload-image",authenticateKey, upload.single("image"), async (req, res) => {
   try {
     const file = req.file;
 
@@ -97,7 +97,7 @@ app.post("/upload-image", upload.single("image"), async (req, res) => {
 });
 
 
-app.post("/signup", async (req, res) => {
+app.post("/signup",authenticateKey, async (req, res) => {
   const { email, password, username } = req.body;
 
   const { user, error } = await supabase.auth.signUp({
@@ -151,7 +151,7 @@ app.post("/signup", async (req, res) => {
 //   }
 // });
 
-app.post("/register-doctor-auth", async (req, res) => {
+app.post("/register-doctor-auth",authenticateKey, async (req, res) => {
   try {
     const { doctor_email, doctor_password } = req.body;
 
@@ -170,7 +170,7 @@ app.post("/register-doctor-auth", async (req, res) => {
   }
 });
 
-app.get("/doctors", async (req, res) => {
+app.get("/doctors",authenticateKey, async (req, res) => {
   try {
     const { data, error } = await supabase.from("doctors").select("*");
 
@@ -183,7 +183,7 @@ app.get("/doctors", async (req, res) => {
   }
 });
 
- app.post('/check-user', async (req, res) => {
+ app.post('/check-user',authenticateKey, async (req, res) => {
     const { email } = req.body;
   
     if (!email) {
