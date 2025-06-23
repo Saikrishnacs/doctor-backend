@@ -82,6 +82,32 @@ app.get("/get-doctors", authenticateKey, async (req, res) => {
   }
 });
 
+app.get("/getdoctor-by-name", authenticateKey, async (req, res) => {
+  try {
+    const { name } = req.query;
+
+    if (!name) {
+      return res.status(400).json({ error: "Doctor name is required" });
+    }
+
+    const { data, error } = await supabase
+      .from("doctors")
+      .select("doctor_name, about_me, specialty, experience, fee")
+      .eq("doctor_name", name);
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: "Doctor not found" });
+    }
+
+    res.json({ doctors: data });
+  } catch (err) {
+    console.error("Fetch Doctor By Name Error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 app.post("/upload-image",authenticateKey, upload.single("image"), async (req, res) => {
   try {
     const file = req.file;
