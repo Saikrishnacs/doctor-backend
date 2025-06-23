@@ -67,6 +67,20 @@ app.post("/add-doctor", authenticateKey, async (req, res) => {
   }
 });
 
+app.get("/get-doctors", authenticateKey, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("doctors")
+      .select("*");
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    res.json({ doctors: data });
+  } catch (err) {
+    console.error("Fetch Doctors Error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 app.post("/upload-image",authenticateKey, upload.single("image"), async (req, res) => {
   try {
