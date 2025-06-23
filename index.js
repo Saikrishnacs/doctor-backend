@@ -92,7 +92,7 @@ app.get("/getdoctor-by-name", authenticateKey, async (req, res) => {
 
     const { data, error } = await supabase
       .from("doctors")
-      .select("doctor_name, about_me, specialty, experience, fee")
+      .select("doctor_name, about_me, specialty, experience, fee, education")
       .eq("doctor_name", name);
 
     if (error) return res.status(500).json({ error: error.message });
