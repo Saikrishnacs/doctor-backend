@@ -92,7 +92,7 @@ app.get("/getdoctor-by-name", authenticateKey, async (req, res) => {
 
     const { data, error } = await supabase
       .from("doctors")
-      .select("doctor_name, about_me, specialty, experience, fee, education")
+      .select("doctor_name, about_me, specialty, experience, fee, education,image_url")
       .eq("doctor_name", name);
 
     if (error) return res.status(500).json({ error: error.message });
@@ -105,6 +105,156 @@ app.get("/getdoctor-by-name", authenticateKey, async (req, res) => {
   } catch (err) {
     console.error("Fetch Doctor By Name Error:", err);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.get("/getdoctor-appointment", authenticateKey, async (req, res) => {
+  try {
+    const { name } = req.query;
+
+    if (!name) {
+      return res.status(400).json({ error: "Doctor name is required" });
+    }
+
+    const now = new Date();
+    const today = now.toISOString().split("T")[0];
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+
+    // Calculate end date = today + 6 days
+    const endDateObj = new Date(now);
+    endDateObj.setDate(now.getDate() + 6);
+    const endDate = endDateObj.toISOString().split("T")[0];
+
+    const { data, error } = await supabase
+      .from("appointments")
+      .select("user_name, user_email, doctor_name, specialty, doctor_email, fee, date, time_slot")
+      .eq("doctor_name", name.trim())
+      .gte("date", today)
+      .lte("date", endDate)
+      .order("date", { ascending: true });
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: "Doctor not found or no slots in date range" });
+    }
+
+    const { user_name, user_email, doctor_name, specialty, doctor_email, fee } = data[0];
+
+    // Filter today's slots by current time
+    const booked_slots = data.filter(item => {
+      if (item.date > today) return true;
+
+      if (item.date === today) {
+        const [time, modifier] = item.time_slot.split(" ");
+        let [hour, minute] = time.split(":").map(Number);
+        if (modifier === "PM" && hour !== 12) hour += 12;
+        if (modifier === "AM" && hour === 12) hour = 0;
+
+        return hour > currentHour || (hour === currentHour && minute > currentMinute);
+      }
+
+      return false;
+    }).map(item => ({
+      date: item.date,
+      time_slot: item.time_slot
+    }));
+
+    return res.json({
+      doctor: {
+        user_name,
+        user_email,
+        doctor_name,
+        specialty,
+        doctor_email,
+        fee,
+        booked_slots
+      }
+    });
+
+  } catch (err) {
+    console.error("Fetch Doctor Appointments Error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+app.post("/book-appointment", authenticateKey, async (req, res) => {
+  const {
+    user_name,
+    user_email,
+    doctor_name,
+    specialty,
+    fee,
+    doctor_email,
+    date,
+    time_slot
+  } = req.body;
+
+  if (!user_name || !user_email || !doctor_name || !specialty || !date || !time_slot) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  try {
+    const { error } = await supabase.from("appointments").insert([
+      {
+        user_name,
+        user_email,
+        doctor_name,
+        specialty,
+        fee,
+        doctor_email,
+        date,
+        time_slot
+      }
+    ]);
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    return res.json({ message: "Appointment booked successfully" });
+  } catch (err) {
+    console.error("Book appointment error:", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.get("/upcoming-appointments", authenticateKey, async (req, res) => {
+  try {
+    const now = new Date();
+
+    const today = now.toISOString().split("T")[0]; // "2025-06-24"
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+
+    const { data, error } = await supabase
+      .from("appointments")
+      .select("user_name, doctor_name, date, time_slot, created_at")
+      .gte("date", today) // Get today's and future dates
+      .order("date", { ascending: true });
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    // Filter today’s slots by time
+    const upcoming = data.filter(item => {
+      if (item.date > today) return true; // future dates
+
+      if (item.date === today) {
+        // Parse time_slot like "01:30 PM" into hour/minute
+        const [time, modifier] = item.time_slot.split(" ");
+        let [hour, minute] = time.split(":").map(Number);
+
+        if (modifier === "PM" && hour !== 12) hour += 12;
+        if (modifier === "AM" && hour === 12) hour = 0;
+
+        return hour > currentHour || (hour === currentHour && minute > currentMinute);
+      }
+
+      return false;
+    });
+
+    return res.json({ appointments: upcoming });
+  } catch (err) {
+    console.error("Upcoming appointments error:", err);
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
