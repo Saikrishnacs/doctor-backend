@@ -111,7 +111,6 @@ app.get("/getdoctor-by-name", authenticateKey, async (req, res) => {
 app.get("/getdoctor-appointment", authenticateKey, async (req, res) => {
   try {
     const { name } = req.query;
-
     if (!name) {
       return res.status(400).json({ error: "Doctor name is required" });
     }
@@ -121,7 +120,6 @@ app.get("/getdoctor-appointment", authenticateKey, async (req, res) => {
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
 
-    // Calculate end date = today + 6 days
     const endDateObj = new Date(now);
     endDateObj.setDate(now.getDate() + 6);
     const endDate = endDateObj.toISOString().split("T")[0];
@@ -136,33 +134,40 @@ app.get("/getdoctor-appointment", authenticateKey, async (req, res) => {
 
     if (error) return res.status(500).json({ error: error.message });
 
-    if (!data || data.length === 0) {
-      return res.status(404).json({ error: "Doctor not found or no slots in date range" });
-    }
+    // Default values
+    let doctorInfo = {
+      user_name: "",
+      user_email: "",
+      doctor_name: name,
+      specialty: "",
+      doctor_email: "",
+      fee: "",
+      booked_slots: [],
+    };
 
-    const { user_name, user_email, doctor_name, specialty, doctor_email, fee } = data[0];
+    if (data && data.length > 0) {
+      const { user_name, user_email, doctor_name, specialty, doctor_email, fee } = data[0];
 
-    // Filter today's slots by current time
-    const booked_slots = data.filter(item => {
-      if (item.date > today) return true;
+      // Filter and prepare booked slots
+      const booked_slots = data.filter(item => {
+        if (item.date > today) return true;
 
-      if (item.date === today) {
-        const [time, modifier] = item.time_slot.split(" ");
-        let [hour, minute] = time.split(":").map(Number);
-        if (modifier === "PM" && hour !== 12) hour += 12;
-        if (modifier === "AM" && hour === 12) hour = 0;
+        if (item.date === today) {
+          const [time, modifier] = item.time_slot.split(" ");
+          let [hour, minute] = time.split(":").map(Number);
+          if (modifier === "PM" && hour !== 12) hour += 12;
+          if (modifier === "AM" && hour === 12) hour = 0;
 
-        return hour > currentHour || (hour === currentHour && minute > currentMinute);
-      }
+          return hour > currentHour || (hour === currentHour && minute > currentMinute);
+        }
 
-      return false;
-    }).map(item => ({
-      date: item.date,
-      time_slot: item.time_slot
-    }));
+        return false;
+      }).map(item => ({
+        date: item.date,
+        time_slot: item.time_slot
+      }));
 
-    return res.json({
-      doctor: {
+      doctorInfo = {
         user_name,
         user_email,
         doctor_name,
@@ -170,14 +175,18 @@ app.get("/getdoctor-appointment", authenticateKey, async (req, res) => {
         doctor_email,
         fee,
         booked_slots
-      }
-    });
+      };
+    }
+
+    // Always return doctor info with slots (even if empty)
+    return res.json({ doctor: doctorInfo });
 
   } catch (err) {
     console.error("Fetch Doctor Appointments Error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 app.post("/book-appointment", authenticateKey, async (req, res) => {
   const {
     user_name,
