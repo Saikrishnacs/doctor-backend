@@ -66,7 +66,6 @@ app.post("/add-doctor", authenticateKey, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 app.get("/get-doctors", authenticateKey, async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -78,32 +77,6 @@ app.get("/get-doctors", authenticateKey, async (req, res) => {
     res.json({ doctors: data });
   } catch (err) {
     console.error("Fetch Doctors Error:", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-app.get("/getdoctor-by-name", authenticateKey, async (req, res) => {
-  try {
-    const { name } = req.query;
-
-    if (!name) {
-      return res.status(400).json({ error: "Doctor name is required" });
-    }
-
-    const { data, error } = await supabase
-      .from("doctors")
-      .select("doctor_name, about_me, specialty, experience, fee, education,image_url")
-      .eq("doctor_name", name);
-
-    if (error) return res.status(500).json({ error: error.message });
-
-    if (!data || data.length === 0) {
-      return res.status(404).json({ error: "Doctor not found" });
-    }
-
-    res.json({ doctors: data });
-  } catch (err) {
-    console.error("Fetch Doctor By Name Error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -187,6 +160,7 @@ app.get("/getdoctor-appointment", authenticateKey, async (req, res) => {
   }
 });
 
+
 app.post("/book-appointment", authenticateKey, async (req, res) => {
   const {
     user_name,
@@ -267,6 +241,33 @@ app.get("/upcoming-appointments", authenticateKey, async (req, res) => {
   }
 });
 
+
+app.get("/getdoctor-by-name", authenticateKey, async (req, res) => {
+  try {
+    const { name } = req.query;
+
+    if (!name) {
+      return res.status(400).json({ error: "Doctor name is required" });
+    }
+
+    const { data, error } = await supabase
+      .from("doctors")
+      .select("doctor_name, about_me, specialty, experience, fee, education,image_url")
+      .eq("doctor_name", name);
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: "Doctor not found" });
+    }
+
+    res.json({ doctors: data });
+  } catch (err) {
+    console.error("Fetch Doctor By Name Error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 app.post("/upload-image",authenticateKey, upload.single("image"), async (req, res) => {
   try {
     const file = req.file;
@@ -296,59 +297,175 @@ app.post("/upload-image",authenticateKey, upload.single("image"), async (req, re
 });
 
 
-app.post("/signup",authenticateKey, async (req, res) => {
-  const { email, password, username } = req.body;
+app.post('/signup', async (req, res) => {
+    const { email, password, username,type  } = req.body;
 
-  const { user, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        username: username,
-      },
-    },
-  });
+    const { user, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username: username,
+            type:type
+          }
+        }
+    });
 
-  if (error) return res.status(400).json({ error: "ji" });
+    if (error) return res.status(400).json({ error: "ji" });
 
-  res.json({
-    details: user,
-    message:
-      "Signup successful! Please check your email to confirm your account.",
-  });
+    res.json({ details : user, message: "Signup successful! Please check your email to confirm your account." });
 });
 
+app.post('/login', async (req, res) => {
+    const { email, password } = req.body;
+  
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+  
+    if (error) {
+      if (error.message.toLowerCase().includes("email not confirmed")) {
+        return res.status(403).json({ error: "Please confirm your email before logging in." });
+      }
+      return res.status(400).json({ error: error.message });
+    }
+  
+    const user = data.user;
+    const token = data.session.access_token;
+    const username = user.user_metadata?.username;
+ 
+  
+    res.json({
+      message: "Login successful",
+      user: {
+        email: user.email,
+        username: username,
+        user_id : user.id
+      },
+      token: token
+    });
+  });
+  
+  app.post('/forgot-password', async (req, res) => {
+    const { email } = req.body;
+  
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      // redirectTo: 'https://frontend-ocum.vercel.app/updatepassword' 
+       redirectTo: 'http://localhost:5173/updatepassword' 
+    });
+  
+    if (error) return res.status(400).json({ error: error.message });
+  
+    res.json({ message: 'Password reset email sent. Please check your inbox.' });
+  });
 
-//     app.post("/send-email", async (req, res) => {
-//   try {
-//     const { name, email } = req.body;
+  app.post('/update-password', async (req, res) => {
+    const { access_token, refresh_token, newPassword } = req.body;
+  
+    if (!access_token || !refresh_token || !newPassword) {
+      return res.status(400).json({ error: 'Access token, refresh token, and new password are required.' });
+    }
+  
+    try {
+      // Step 1: Set session
+      const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+        access_token,
+        refresh_token,
+      });
+  
+      if (sessionError) {
+        return res.status(400).json({ error: 'Failed to set session: ' + sessionError.message });
+      }
+  
+      // Step 2: Update password now that session is active
+      const { data, error } = await supabase.auth.updateUser({ password: newPassword });
+  
+      if (error) {
+        return res.status(400).json({ error: 'Failed to update password: ' + error.message });
+      }
+  
+      res.json({
+        message: 'Password updated successfully. You can now log in with your new password.',
+        user: data.user,
+      });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error. Please try again.' });
+    }
+  });
+  
 
-//     const payload = {
-//       service_id: "service_30z1yyq",       
-//       template_id: "template_s3flrzc",     
-//       user_id: "fRJmgKsLAgJm5CX3P",        
-//       template_params: {
-//         name: name,     // match variable names in your EmailJS template
-//         email: email
-//       }
-//     };
+  app.post('/check-user', async (req, res) => {
+    const { email } = req.body;
+  
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required.' });
+    }
+  
+    try {
+        const { data, error } = await supabase
+        .from('doctors')
+        .select('*')
+        .eq('doctor_email', email)
+        .single();
+  
+      if (error && error.code !== 'PGRST116') {
+        return res.status(500).json({ error: error.message });
+      }
+  
+      if (!data) {
+        return res.json({ exists: false, message: 'User does not exist.' });
+      }
+  
+      res.json({ exists: true, user: data });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+  
+  app.post('/resend-verification', async (req, res) => {
+    const { email } = req.body;
+  
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required.' });
+    }
+  
+    try {
+      // 1. Get the user from email
+      const { data: users, error: listError } = await supabase.auth.admin.listUsers({ email });
+  
+      if (listError) {
+        return res.status(500).json({ error: listError.message });
+      }
+  
+      const user = users.users[0];
+      if (!user) {
+        return res.status(404).json({ error: 'User not found.' });
+      }
+  
+      if (user.email_confirmed_at) {
+        return res.status(400).json({ message: 'User already verified.' });
+      }
+  
+      // 2. Send magic link to simulate verification
+      const { error: emailError } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: 'https://your-app.com/verified-redirect' // adjust to your frontend
+        }
+      });
+  
+      if (emailError) {
+        return res.status(500).json({ error: emailError.message });
+      }
+  
+      res.json({ message: 'Verification email sent successfully.' });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error. Try again later.' });
+    }
+  });
 
-//     const response = await axios.post(
-//       "https://api.emailjs.com/api/v1.0/email/send",
-//       payload,
-//       {
-//         headers: {
-//           "Content-Type": "application/json"
-//         }
-//       }
-//     );
 
-//     res.json({ message: "Email sent successfully", details: response.data });
-//   } catch (err) {
-//     console.error("Email Send Error:", err?.response?.data || err.message);
-//     res.status(500).json({ error: "Failed to send email", details: err?.response?.data || err.message });
-//   }
-// });
 
 app.post("/register-doctor-auth",authenticateKey, async (req, res) => {
   try {
