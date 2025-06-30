@@ -70,7 +70,7 @@ app.get("/get-doctors", authenticateKey, async (req, res) => {
   try {
     const { data, error,count} = await supabase
       .from("doctors")
-      .select("*",{count:""exact});
+      .select("*",{count:"exact"});
 
     if (error) return res.status(500).json({ error: error.message });
 
