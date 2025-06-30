@@ -400,33 +400,31 @@ app.post('/login', async (req, res) => {
   });
   
 
-  app.post('/check-user', async (req, res) => {
-    const { email } = req.body;
-  
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required.' });
+app.post('/check-user', async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  try {
+    // Query the auth.users table using Supabase Admin API
+    const { data, error } = await supabase
+      .from('user_emails') // the custom view we created
+      .select('email, type')
+      .eq('email', email)
+      .single();
+
+    if (error || !data) {
+      return res.json({ exists: false });
     }
-  
-    try {
-        const { data, error } = await supabase
-        .from('doctors')
-        .select('*')
-        .eq('doctor_email', email)
-        .single();
-  
-      if (error && error.code !== 'PGRST116') {
-        return res.status(500).json({ error: error.message });
-      }
-  
-      if (!data) {
-        return res.json({ exists: false, message: 'User does not exist.' });
-      }
-  
-      res.json({ exists: true, user: data });
-    } catch (err) {
-      res.status(500).json({ error: 'Server error' });
-    }
-  });
+
+    res.json({ exists: true, type: data.type || null });
+  } catch (err) {
+    console.error('Check user error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
   
   app.post('/resend-verification', async (req, res) => {
     const { email } = req.body;
