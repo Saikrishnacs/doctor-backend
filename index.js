@@ -68,13 +68,13 @@ app.post("/add-doctor", authenticateKey, async (req, res) => {
 });
 app.get("/get-doctors", authenticateKey, async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data, error,count} = await supabase
       .from("doctors")
-      .select("*");
+      .select("*",{count:""exact});
 
     if (error) return res.status(500).json({ error: error.message });
 
-    res.json({ doctors: data });
+    res.json({ doctors: data ,count });
   } catch (err) {
     console.error("Fetch Doctors Error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -97,9 +97,9 @@ app.get("/getdoctor-appointment", authenticateKey, async (req, res) => {
     endDateObj.setDate(now.getDate() + 6);
     const endDate = endDateObj.toISOString().split("T")[0];
 
-    const { data, error } = await supabase
+    const { data, error,count } = await supabase
       .from("appointments")
-      .select("user_name, user_email, doctor_name, specialty, doctor_email, fee, date, time_slot")
+      .select("user_name, user_email, doctor_name, specialty, doctor_email, fee, date, time_slot",{count:"exact"})
       .eq("doctor_name", name.trim())
       .gte("date", today)
       .lte("date", endDate)
@@ -152,7 +152,7 @@ app.get("/getdoctor-appointment", authenticateKey, async (req, res) => {
     }
 
     // Always return doctor info with slots (even if empty)
-    return res.json({ doctor: doctorInfo });
+    return res.json({ doctor: doctorInfo,count });
 
   } catch (err) {
     console.error("Fetch Doctor Appointments Error:", err);
@@ -211,7 +211,7 @@ app.get("/upcoming-appointments", authenticateKey, async (req, res) => {
     const { data, error } = await supabase
       .from("appointments")
       .select("user_name, doctor_name, date, time_slot, created_at")
-      .gte("date", today) // Get today's and future dates
+      .gte("date", today) 
       .order("date", { ascending: true });
 
     if (error) return res.status(500).json({ error: error.message });
@@ -234,13 +234,18 @@ app.get("/upcoming-appointments", authenticateKey, async (req, res) => {
       return false;
     });
 
-    return res.json({ appointments: upcoming });
+  const uniquePatients = new Set(upcoming.map(item => item.user_name));
+
+    return res.json({
+      appointments: upcoming,
+      appointmentscount: upcoming.length,
+      patientCount: uniquePatients.size
+    });
   } catch (err) {
     console.error("Upcoming appointments error:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 });
-
 
 app.get("/getdoctor-by-name", authenticateKey, async (req, res) => {
   try {
