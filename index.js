@@ -160,6 +160,31 @@ app.get("/getdoctor-appointment", authenticateKey, async (req, res) => {
   }
 });
 
+app.post('/check-doctor-key', async (req, res) => {
+  const { email, key } = req.body;
+
+  if (!email || !key) {
+    return res.status(400).json({ error: 'Email and key are required' });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('doctors')
+      .select('doctor_email, key')
+      .eq('doctor_email', email)
+      .eq('key', key)
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ error: 'Doctor not found' });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error checking doctor:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 app.post("/book-appointment", authenticateKey, async (req, res) => {
   const {
