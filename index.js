@@ -7,7 +7,10 @@ const fs = require("fs");
 const axios = require('axios');
 
 const app = express();
-app.use(cors());
+app.use(cors({
+    origin: '*', 
+    credentials: false
+  }));
 app.use(express.json());
 
 //  Multer Config (for image upload)
