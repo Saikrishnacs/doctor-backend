@@ -162,6 +162,31 @@ app.get("/getdoctor-appointment", authenticateKey, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+app.post("/getUserDetails", async (req, res) => {
+  const { uid } = req.body;
+
+  if (!uid) {
+    return res.status(400).json({ error: "User_id is required" });
+  }
+
+  try {
+    // Query the auth.users table using Supabase Admin API
+    const { data, error } = await supabase
+      .from("user_emails") // the custom view we created
+      .select("*")
+      .eq("id", uid)
+      .single();
+
+    if (error || !data) {
+      return res.json({ exists: false });
+    }
+
+    res.json({ data: data || null });
+  } catch (err) {
+    console.error("Check user error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 app.post('/check-doctor-key', async (req, res) => {
   const { email, key } = req.body;
