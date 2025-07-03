@@ -346,23 +346,55 @@ app.post("/upload-image",authenticateKey, upload.single("image"), async (req, re
 });
 
 
-app.post('/signup', async (req, res) => {
-    const { email, password, username,type  } = req.body;
+app.post("/signup", async (req, res) => {
+  const { email, password, username, type, twoStepVerification } = req.body;
 
-    const { user, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            username: username,
-            type:type
-          }
-        }
+  const { user, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        username: username,
+        type: type,
+        twoStepVerification: twoStepVerification,
+        phone: "",
+        address: "",
+        gender: "",
+        DOB: "",
+      },
+    },
+  });
+
+  if (error) return res.status(400).json({ error: "ji" });
+
+  res.json({
+    details: user,
+    message:
+      "Signup successful! Please check your email to confirm your account.",
+  });
+});
+
+app.post("/update-user-profile", async (req, res) => {
+  const { user_id, updates } = req.body;
+
+  if (!user_id || !updates) {
+    return res.status(400).json({ error: "User ID and updates are required" });
+  }
+
+  try {
+    const { data, error } = await supabase.auth.admin.updateUserById(user_id, {
+      user_metadata: updates,
     });
 
-    if (error) return res.status(400).json({ error: "ji" });
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
 
-    res.json({ details : user, message: "Signup successful! Please check your email to confirm your account." });
+    res.json({ message: "User profile updated successfully", data });
+  } catch (err) {
+    console.error("Update user metadata error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
 app.post('/login', async (req, res) => {
