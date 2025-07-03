@@ -186,6 +186,25 @@ app.post('/check-doctor-key', async (req, res) => {
   }
 });
 
+app.get("/get-user-details/:id", async (req, res) => {
+  const userId = req.params.id;
+  const { data, error } = await supabase
+    .from("user_emails")
+    .select("email, username, type")
+    .eq("id", userId)
+    .single();
+
+  if (error || !data) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  res.json({
+    email: data.email,
+    username: data.username,
+    type: data.type,
+  });
+});
+
 app.post("/book-appointment", authenticateKey, async (req, res) => {
   const {
     user_name,
