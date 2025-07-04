@@ -504,32 +504,31 @@ app.post('/login', async (req, res) => {
   });
   
 
-app.post('/check-user', async (req, res) => {
+app.post("/check-user", async (req, res) => {
   const { email } = req.body;
 
   if (!email) {
-    return res.status(400).json({ error: 'Email is required' });
+    return res.status(400).json({ error: "Email is required" });
   }
 
   try {
     // Query the auth.users table using Supabase Admin API
     const { data, error } = await supabase
-      .from('user_emails') // the custom view we created
-      .select('email, type')
-      .eq('email', email)
+      .from("user_emails") // the custom view we created
+      .select("email, type, twostepverification")
+      .eq("email", email)
       .single();
 
     if (error || !data) {
       return res.json({ exists: false });
     }
 
-    res.json({ exists: true, type: data.type || null });
+    res.json({ exists: true, type: data.type, to:data.twostepverification || null });
   } catch (err) {
-    console.error('Check user error:', err);
-    res.status(500).json({ error: 'Server error' });
+    console.error("Check user error:", err);
+    res.status(500).json({ error: "Server error" });
   }
 });
-  
   app.post('/resend-verification', async (req, res) => {
     const { email } = req.body;
   
