@@ -233,6 +233,45 @@ app.get("/get-user-details/:id", async (req, res) => {
   });
 });
 
+app.get("/get-UserCount", authenticateKey, async (req, res) => {
+  try {
+    // 1. Get all user_email entries
+    const { data: appointments, error } = await supabase
+      .from("appointments")
+      .select("user_email");
+
+    if (error) throw error;
+
+    const emailCountMap = new Map();
+    let oldCount = 0;
+    let newCount = 0;
+
+    for (const { user_email } of appointments) {
+      if (!user_email) continue;
+
+      const count = emailCountMap.get(user_email) || 0;
+
+      if (count === 0) {
+        newCount++; // first time email seen
+      } else {
+        oldCount++; // repeated email
+      }
+
+      emailCountMap.set(user_email, count + 1);
+    }
+     const totalCount = oldCount + newCount;
+
+    return res.status(200).json({
+      totalCount,
+      oldCount,
+      newCount,
+    });
+  } catch (err) {
+    console.error("Error in get-UserCount:", err.message);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 app.post("/book-appointment", authenticateKey, async (req, res) => {
   const {
     user_name,
