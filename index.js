@@ -83,7 +83,35 @@ app.get("/get-doctors", authenticateKey, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+app.get("/is-authorized", authenticateKey, async (req, res) => {
+  try {
+    const { uuid } = req.query;
+     console.log("data uuid",uuid)
 
+    if (!uuid) {
+      return res.status(400).json({ error: "uuid is required" });
+    }
+
+    const { data, error } = await supabase
+      .from("user_emails")
+      .select("id")
+      .eq("id", uuid);  
+     
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: "uuid not found" });
+    }
+
+    return res.status(200).json({ authorized: true });
+  } catch (err) {
+    console.error("Error checking uuid:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 app.get("/getdoctor-appointment", authenticateKey, async (req, res) => {
   try {
     const { name } = req.query;
