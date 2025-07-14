@@ -299,9 +299,14 @@ app.get("/get-UserCount", authenticateKey, async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
-
 app.post("/book-appointment", authenticateKey, async (req, res) => {
   const {
+    appointment_id,      // required for update actions
+    status,              // "completed" | "no_response"
+    new_date,            // optional - only for reschedule
+    new_time_slot,       // optional - only for reschedule
+
+    // Below fields are only required on booking
     user_name,
     user_email,
     doctor_name,
@@ -309,15 +314,41 @@ app.post("/book-appointment", authenticateKey, async (req, res) => {
     fee,
     doctor_email,
     date,
-    time_slot
+    time_slot,
+    consultation_type
   } = req.body;
 
-  if (!user_name || !user_email || !doctor_name || !specialty || !date || !time_slot) {
-    return res.status(400).json({ error: "Missing required fields" });
-  }
-
   try {
-    const { error } = await supabase.from("appointments").insert([
+    
+    if (appointment_id) {
+      const updateData = {};
+      if (status) updateData.status = status;
+      if (new_date) updateData.date = new_date;
+      if (new_time_slot) updateData.time_slot = new_time_slot;
+
+      const { error: updateError } = await supabase
+        .from("appointments")
+        .update(updateData)
+        .eq("id", appointment_id);
+
+      if (updateError) return res.status(500).json({ error: updateError.message });
+
+      return res.json({ message: "Appointment updated successfully" });
+    }
+
+    if (
+      !user_name ||
+      !user_email ||
+      !doctor_name ||
+      !specialty ||
+      !date ||
+      !time_slot ||
+      !consultation_type
+    ) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const { error: insertError } = await supabase.from("appointments").insert([
       {
         user_name,
         user_email,
@@ -326,18 +357,74 @@ app.post("/book-appointment", authenticateKey, async (req, res) => {
         fee,
         doctor_email,
         date,
-        time_slot
-      }
+        time_slot,
+        consultation_type,
+        status: "upcoming"
+      },
     ]);
 
-    if (error) return res.status(500).json({ error: error.message });
+    if (insertError) return res.status(500).json({ error: insertError.message });
 
     return res.json({ message: "Appointment booked successfully" });
   } catch (err) {
-    console.error("Book appointment error:", err);
+    console.error("Appointment API error:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 });
+
+app.get("/all-appointments",authenticateKey,async (req,res)=>{
+  try{
+    const {data,error} =await supabase
+    .from("appointments")
+    .select("*")
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    res.json({ appointments: data });
+  } catch (err) {
+    console.error("Fetch Doctors Error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+})
+
+// app.post("/book-appointment", authenticateKey, async (req, res) => {
+//   const {
+//     user_name,
+//     user_email,
+//     doctor_name,
+//     specialty,
+//     fee,
+//     doctor_email,
+//     date,
+//     time_slot
+//   } = req.body;
+
+//   if (!user_name || !user_email || !doctor_name || !specialty || !date || !time_slot) {
+//     return res.status(400).json({ error: "Missing required fields" });
+//   }
+
+//   try {
+//     const { error } = await supabase.from("appointments").insert([
+//       {
+//         user_name,
+//         user_email,
+//         doctor_name,
+//         specialty,
+//         fee,
+//         doctor_email,
+//         date,
+//         time_slot
+//       }
+//     ]);
+
+//     if (error) return res.status(500).json({ error: error.message });
+
+//     return res.json({ message: "Appointment booked successfully" });
+//   } catch (err) {
+//     console.error("Book appointment error:", err);
+//     return res.status(500).json({ error: "Internal server error" });
+//   }
+// });
 
 app.get("/upcoming-appointments", authenticateKey, async (req, res) => {
   try {
