@@ -301,10 +301,10 @@ app.get("/get-UserCount", authenticateKey, async (req, res) => {
 });
 app.post("/book-appointment", authenticateKey, async (req, res) => {
   const {
-    appointment_id,      // required for update actions
-    status,              // "completed" | "no_response"
-    new_date,            // optional - only for reschedule
-    new_time_slot,       // optional - only for reschedule
+    appointment_id,      
+    status,              
+    new_date,            
+    new_time_slot,       
 
     // Below fields are only required on booking
     user_name,
@@ -315,7 +315,8 @@ app.post("/book-appointment", authenticateKey, async (req, res) => {
     doctor_email,
     date,
     time_slot,
-    consultation_type
+    consultation_type,
+    notes
   } = req.body;
 
   try {
@@ -359,7 +360,8 @@ app.post("/book-appointment", authenticateKey, async (req, res) => {
         date,
         time_slot,
         consultation_type,
-        status: "upcoming"
+        status: "upcoming",
+        notes
       },
     ]);
 
